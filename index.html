@@ -88,7 +88,7 @@
 
   <label for="vendedor">Deseja Enviar de qual número?:</label>
   <select id="vendedor">
-    <option value="Financeiro">Financeiro (número que cai no bot)</option>
+    <option value="Financeiro">Financeiro (55 11 88888-8888)</option>
   </select>
 
   <label for="numeros">Números (um por linha):</label>
@@ -176,15 +176,29 @@
       let resultados = [];
       for (let i = 0; i < numeros.length; i++) {
         try {
-          const resp = await fetch(`https://da96512edc40.ngrok-free.app/enviar?vendedor=${vendedor}`, {
+          // Enviar a primeira mensagem
+          const resp1 = await fetch(`https://da96512edc40.ngrok-free.app/enviar?vendedor=${vendedor}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ numeros: [numeros[i]], ...jsonBase })
           });
-          resultados.push({ numero: numeros[i], resultado: await resp.json() });
+          const result1 = await resp1.json();
+          resultados.push({ numero: numeros[i], resultado: result1 });
+
+          // Se for mensagem dupla, enviar a segunda mensagem
+          if (tipo === "mensagem-dupla" && mensagem2) {
+            const resp2 = await fetch(`https://da96512edc40.ngrok-free.app/enviar?vendedor=${vendedor}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ numeros: [numeros[i]], mensagem: mensagem2, titulo })
+            });
+            const result2 = await resp2.json();
+            resultados.push({ numero: numeros[i], resultado: result2 });
+          }
         } catch (err) {
           resultados.push({ numero: numeros[i], resultado: { erro: err.message } });
         }
+
         barra.value = i + 1;
         status.textContent = `Enviando... (${i + 1}/${numeros.length})`;
       }
