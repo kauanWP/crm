@@ -177,7 +177,7 @@
       let resultados = [];
       for (let i = 0; i < numeros.length; i++) {
         try {
-          const resp = await fetch(`https://backend-9tzq.onrender.com/enviar?vendedor=${vendedor}`, {
+          const resp = await fetch(`https://da96512edc40.ngrok-free.app/enviar?vendedor=${vendedor}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ numeros: [numeros[i]], ...jsonBase })
