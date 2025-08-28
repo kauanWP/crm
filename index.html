@@ -177,7 +177,7 @@
       for (let i = 0; i < numeros.length; i++) {
         try {
           // Enviar a primeira mensagem
-          const resp1 = await fetch(`https://e6823d301ebf.ngrok-free.app/enviar?vendedor=${vendedor}`, {
+          const resp1 = await fetch(`https://8ac3555a474d.ngrok-free.app/enviar?vendedor=${vendedor}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ numeros: [numeros[i]], ...jsonBase })
@@ -187,7 +187,7 @@
 
           // Se for mensagem dupla, enviar a segunda mensagem
           if (tipo === "mensagem-dupla" && mensagem2) {
-            const resp2 = await fetch(`https://934301f245b2.ngrok-free.app/enviar?vendedor=${vendedor}`, {
+            const resp2 = await fetch(`https://8ac3555a474d.ngrok-free.app/enviar?vendedor=${vendedor}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ numeros: [numeros[i]], mensagem: mensagem2, titulo })
