@@ -69,7 +69,6 @@
     .hidden {
       display: none;
     }
-    /* Estilos para a seção de status do WhatsApp */
     .status-container {
       background: #f8f9fa;
       padding: 15px;
@@ -144,11 +143,11 @@
 
   <label for="vendedor">Deseja Enviar de qual número?:</label>
   <select id="vendedor">
-    <option value="Financeiro">Financeiro (55 11 88888-8888)</option>
+    <option value="Financeiro">Financeiro</option>
   </select>
 
   <label for="numeros">Números (um por linha):</label>
-  <textarea id="numeros" rows="4" placeholder="Ex: 5599999999999"></textarea>
+  <textarea id="numeros" rows="4" placeholder="Ex: 5511999999999"></textarea>
 
   <label for="mensagem1">Mensagem 1:</label>
   <textarea id="mensagem1" placeholder="Mensagem principal"></textarea>
@@ -185,8 +184,9 @@
       "mensagem-boleto": ["divMensagem2", "divCaminhoBoleto"],
     };
 
-    // URL base do seu backend - altere conforme necessário
-    const BASE_URL = 'https://4fe6c1fe3b8b.ngrok-free.app';
+    // URL base do seu backend - AJUSTE CONFORME SUA CONFIGURAÇÃO
+    const BASE_URL = 'http://localhost:13000'; // Para desenvolvimento local
+    // const BASE_URL = 'https://seu-dominio.ngrok-free.app'; // Para produção
 
     function atualizarCampos() {
       document.querySelectorAll(".hidden").forEach(el => el.classList.add("hidden"));
@@ -197,8 +197,22 @@
     // Função para verificar status do WhatsApp
     async function verificarStatusWhatsApp() {
       try {
+        console.log('Verificando status do WhatsApp...');
         const response = await fetch(`${BASE_URL}/health`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Resposta não é JSON:', text.substring(0, 100));
+          throw new Error('Resposta do servidor não é JSON');
+        }
+        
         const data = await response.json();
+        console.log('Status recebido:', data);
         
         const statusText = document.getElementById('statusText');
         const statusDetails = document.getElementById('statusDetails');
@@ -215,7 +229,9 @@
         } else {
           statusText.textContent = '❌ DESCONECTADO';
           statusText.className = 'status-indicator status-disconnected';
-          statusDetails.textContent = 'WhatsApp não conectado. Clique em "Conectar WhatsApp" para escanear o QR Code.';
+          statusDetails.textContent = data.qrDisponivel 
+            ? 'QR Code disponível. Clique em "Conectar WhatsApp" para escanear.' 
+            : 'Aguardando geração do QR Code...';
           btnConectar.textContent = 'Conectar WhatsApp';
           btnConectar.style.backgroundColor = '#25D366';
           btnEnviar.disabled = true;
@@ -224,35 +240,46 @@
         console.error('Erro ao verificar status:', error);
         document.getElementById('statusText').textContent = '❌ ERRO';
         document.getElementById('statusText').className = 'status-indicator status-disconnected';
-        document.getElementById('statusDetails').textContent = 'Erro ao conectar com o servidor. Verifique a conexão.';
+        document.getElementById('statusDetails').textContent = `Erro: ${error.message}. Verifique se o servidor está rodando.`;
         document.getElementById('btnEnviar').disabled = true;
       }
     }
 
     // Botão para abrir página do QR Code
     document.getElementById('btnConectarWhatsApp').addEventListener('click', () => {
-      window.open(`${BASE_URL}/qr-page`, 'whatsapp_qr', 'width=500,height=700,scrollbars=no,resizable=no');
+      const qrWindow = window.open(`${BASE_URL}/qr-page`, 'whatsapp_qr', 'width=500,height=700,scrollbars=no,resizable=no');
+      if (!qrWindow) {
+        alert('Popup bloqueado! Por favor, permita popups para este site.');
+      }
     });
 
     // Verificar status a cada 5 segundos
     setInterval(verificarStatusWhatsApp, 5000);
     
     // Verificar status quando a página carregar
-    window.addEventListener('load', verificarStatusWhatsApp);
+    window.addEventListener('load', () => {
+      atualizarCampos();
+      verificarStatusWhatsApp();
+    });
 
     document.getElementById("rota").addEventListener("change", atualizarCampos);
-    window.addEventListener("load", atualizarCampos);
 
     document.getElementById("btnEnviar").addEventListener("click", async () => {
       const btn = document.getElementById("btnEnviar");
       btn.disabled = true;
 
       // Verificar se WhatsApp está conectado
-      const statusResponse = await fetch(`${BASE_URL}/health`);
-      const statusData = await statusResponse.json();
-      
-      if (!statusData.pronto) {
-        alert("WhatsApp não está conectado. Por favor, conecte o WhatsApp primeiro.");
+      try {
+        const statusResponse = await fetch(`${BASE_URL}/health`);
+        const statusData = await statusResponse.json();
+        
+        if (!statusData.pronto) {
+          alert("WhatsApp não está conectado. Por favor, conecte o WhatsApp primeiro.");
+          btn.disabled = false;
+          return;
+        }
+      } catch (error) {
+        alert("Erro ao verificar status do WhatsApp. Tente novamente.");
         btn.disabled = false;
         return;
       }
@@ -304,11 +331,18 @@
               ...jsonBase 
             })
           });
+          
+          if (!resp1.ok) {
+            throw new Error(`HTTP error! status: ${resp1.status}`);
+          }
+          
           const result1 = await resp1.json();
           resultados.push({ numero: numeros[i], resultado: result1 });
 
           // Se for mensagem dupla, enviar a segunda mensagem
           if (tipo === "mensagem-dupla" && mensagem2) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Delay entre mensagens
+            
             const resp2 = await fetch(`${BASE_URL}/enviar?vendedor=${vendedor}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -318,18 +352,26 @@
                 titulo 
               })
             });
+            
+            if (!resp2.ok) {
+              throw new Error(`HTTP error! status: ${resp2.status}`);
+            }
+            
             const result2 = await resp2.json();
             resultados.push({ numero: numeros[i], resultado: result2 });
           }
         } catch (err) {
+          console.error('Erro ao enviar mensagem:', err);
           resultados.push({ numero: numeros[i], resultado: { erro: err.message } });
         }
 
         barra.value = i + 1;
         status.textContent = `Enviando... (${i + 1}/${numeros.length})`;
         
-        // Atualizar status do WhatsApp durante o envio
-        await verificarStatusWhatsApp();
+        // Pequeno delay entre números
+        if (i < numeros.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
 
       status.textContent = "Envio finalizado.";
