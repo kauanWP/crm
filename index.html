@@ -203,37 +203,26 @@ async function verificarStatusWhatsApp() {
   try {
     console.log('Verificando status do WhatsApp em:', `${BASE_URL}/health`);
     const response = await fetch(`${BASE_URL}/health`, {
-      method: 'GET',
-      cache: 'no-store',
-      mode: 'cors',
-      headers: {
-        'Accept': 'application/json'
-      },
-      redirect: 'follow'
-    });
+  method: 'GET',
+  cache: 'no-store',
+  mode: 'cors',
+  redirect: 'follow',
+  headers: {
+    'Accept': 'application/json',
+    // header extra para sinalizar que é uma requisição AJAX — pode evitar interstitials
+    'X-Requested-With': 'XMLHttpRequest'
+  }
+});
+console.log('Fetch /health — status:', response.status, 'url:', response.url);
+const contentType = (response.headers.get('content-type') || '').toLowerCase();
 
-    // informações úteis pra debug
-    console.log('Fetch /health — status:', response.status, 'url:', response.url);
-    const contentType = (response.headers.get('content-type') || '').toLowerCase();
-    console.log('Content-Type recebido:', contentType);
-
-    // Se não for JSON, pega como texto e loga / mostra na UI
-    if (!contentType.includes('application/json')) {
-      const text = await response.text();
-      console.warn('Resposta NÃO-JSON recebida em /health:', {
-        status: response.status,
-        url: response.url,
-        contentType,
-        snippet: text.slice(0, 200) // mostra início
-      });
-
-      // mostra o corpo bruto no pre para você inspecionar facilmente
-      respostaPre.textContent = `Resposta não-JSON recebida em /health (status ${response.status}, url: ${response.url}, content-type: ${contentType}):\n\n` + text;
-      throw new Error('Resposta do /health não é JSON. Verifique response.url e corpo acima.');
-    }
-
-    // é JSON — parse com segurança
-    const data = await response.json();
+if (!contentType.includes('application/json')) {
+  const text = await response.text();
+  document.getElementById('resposta').textContent =
+    `Resposta não-JSON recebida (status ${response.status}) em url: ${response.url}\n\n` + text;
+  throw new Error('Resposta do /health não é JSON — veja o campo "Resposta do servidor" para o corpo.');
+}
+const data = await response.json();
     console.log('Status recebido (JSON):', data);
 
     // comportamento normal
