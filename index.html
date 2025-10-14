@@ -184,9 +184,8 @@
       "mensagem-boleto": ["divMensagem2", "divCaminhoBoleto"],
     };
 
-    // URL base do seu backend - AJUSTE CONFORME SUA CONFIGURAÇÃO
-    const BASE_URL = 'https://4fe6c1fe3b8b.ngrok-free.app'; // Para desenvolvimento local
-    // const BASE_URL = 'https://seu-dominio.ngrok-free.app'; // Para produção
+    // URL base - USE A URL DO SEU NGROK
+    const BASE_URL = 'https://8ac3555a474d.ngrok-free.app';
 
     function atualizarCampos() {
       document.querySelectorAll(".hidden").forEach(el => el.classList.add("hidden"));
@@ -197,8 +196,13 @@
     // Função para verificar status do WhatsApp
     async function verificarStatusWhatsApp() {
       try {
-        console.log('Verificando status do WhatsApp...');
-        const response = await fetch(`${BASE_URL}/health`);
+        console.log('Verificando status do WhatsApp em:', `${BASE_URL}/health`);
+        const response = await fetch(`${BASE_URL}/health`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -207,8 +211,8 @@
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           const text = await response.text();
-          console.error('Resposta não é JSON:', text.substring(0, 100));
-          throw new Error('Resposta do servidor não é JSON');
+          console.error('Resposta não é JSON:', text.substring(0, 200));
+          throw new Error('Servidor retornou HTML em vez de JSON. Verifique a URL.');
         }
         
         const data = await response.json();
@@ -313,23 +317,24 @@
       status.textContent = "Disparando mensagens...";
       respostaPre.textContent = "";
 
-      const jsonBase = {
-        mensagem: mensagem1,
-        titulo,
-        dadosCliente: {},
-      };
-
       let resultados = [];
       for (let i = 0; i < numeros.length; i++) {
         try {
           // Enviar a primeira mensagem
+          const payload = {
+            numeros: [numeros[i]],
+            mensagem: mensagem1,
+            titulo,
+            dadosCliente: {}
+          };
+
           const resp1 = await fetch(`${BASE_URL}/enviar?vendedor=${vendedor}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              numeros: [numeros[i]], 
-              ...jsonBase 
-            })
+            headers: { 
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify(payload)
           });
           
           if (!resp1.ok) {
@@ -341,11 +346,14 @@
 
           // Se for mensagem dupla, enviar a segunda mensagem
           if (tipo === "mensagem-dupla" && mensagem2) {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Delay entre mensagens
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
             const resp2 = await fetch(`${BASE_URL}/enviar?vendedor=${vendedor}`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
               body: JSON.stringify({ 
                 numeros: [numeros[i]], 
                 mensagem: mensagem2, 
