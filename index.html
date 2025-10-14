@@ -184,6 +184,7 @@
       "mensagem-boleto": ["divMensagem2", "divCaminhoBoleto"],
     };
 
+    // URL base - USE A NOVA URL DO NGROK
     const BASE_URL = 'https://4fe6c1fe3b8b.ngrok-free.app';
 
     function atualizarCampos() {
@@ -196,22 +197,10 @@
     async function verificarStatusWhatsApp() {
       try {
         console.log('Verificando status do WhatsApp em:', `${BASE_URL}/health`);
-        const response = await fetch(`${BASE_URL}/health`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await fetch(`${BASE_URL}/health`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          console.error('Resposta não é JSON:', text.substring(0, 200));
-          throw new Error('Servidor retornou HTML em vez de JSON. Verifique a URL.');
         }
         
         const data = await response.json();
@@ -329,10 +318,7 @@
 
           const resp1 = await fetch(`${BASE_URL}/enviar?vendedor=${vendedor}`, {
             method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "Accept": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
           });
           
@@ -349,10 +335,7 @@
             
             const resp2 = await fetch(`${BASE_URL}/enviar?vendedor=${vendedor}`, {
               method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
                 numeros: [numeros[i]], 
                 mensagem: mensagem2, 
