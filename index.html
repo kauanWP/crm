@@ -194,47 +194,58 @@
 
     // Função para verificar status do WhatsApp
     async function verificarStatusWhatsApp() {
-      try {
-        console.log('Verificando status do WhatsApp em:', `${BASE_URL}/health`);
-        const response = await fetch(`${BASE_URL}/health`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Status recebido:', data);
-        
-        const statusText = document.getElementById('statusText');
-        const statusDetails = document.getElementById('statusDetails');
-        const btnConectar = document.getElementById('btnConectarWhatsApp');
-        const btnEnviar = document.getElementById('btnEnviar');
-        
-        if (data.pronto) {
-          statusText.textContent = '✅ CONECTADO';
-          statusText.className = 'status-indicator status-connected';
-          statusDetails.textContent = `WhatsApp conectado e pronto para uso. Envios hoje: ${data.enviosHoje}`;
-          btnConectar.textContent = 'Gerenciar Conexão';
-          btnConectar.style.backgroundColor = '#28a745';
-          btnEnviar.disabled = false;
-        } else {
-          statusText.textContent = '❌ DESCONECTADO';
-          statusText.className = 'status-indicator status-disconnected';
-          statusDetails.textContent = data.qrDisponivel 
-            ? 'QR Code disponível. Clique em "Conectar WhatsApp" para escanear.' 
-            : 'Aguardando geração do QR Code...';
-          btnConectar.textContent = 'Conectar WhatsApp';
-          btnConectar.style.backgroundColor = '#25D366';
-          btnEnviar.disabled = true;
-        }
-      } catch (error) {
-        console.error('Erro ao verificar status:', error);
-        document.getElementById('statusText').textContent = '❌ ERRO';
-        document.getElementById('statusText').className = 'status-indicator status-disconnected';
-        document.getElementById('statusDetails').textContent = `Erro: ${error.message}. Verifique se o servidor está rodando.`;
-        document.getElementById('btnEnviar').disabled = true;
-      }
+  const statusText = document.getElementById('statusText');
+  const statusDetails = document.getElementById('statusDetails');
+  const btnConectar = document.getElementById('btnConectarWhatsApp');
+  const btnEnviar = document.getElementById('btnEnviar');
+
+  try {
+    console.log('Verificando status do WhatsApp em:', `${BASE_URL}/health`);
+    const response = await fetch(`${BASE_URL}/health`, { cache: 'no-store' });
+    
+    // pegar content-type para decidir
+    const contentType = response.headers.get('content-type') || '';
+    
+    let data;
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // se não for JSON, pega texto (útil pra debugar HTML)
+      const text = await response.text();
+      console.warn('Resposta não-JSON recebida em /health:', text);
+      throw new Error('Resposta do /health não é JSON. Veja console para o corpo (provável HTML do ngrok ou página de erro).');
     }
+
+    // Se chegou aqui, temos JSON válido
+    console.log('Status recebido:', data);
+
+    if (data.pronto) {
+      statusText.textContent = '✅ CONECTADO';
+      statusText.className = 'status-indicator status-connected';
+      statusDetails.textContent = `WhatsApp conectado e pronto para uso. Envios hoje: ${data.enviosHoje}`;
+      btnConectar.textContent = 'Gerenciar Conexão';
+      btnConectar.style.backgroundColor = '#28a745';
+      btnEnviar.disabled = false;
+    } else {
+      statusText.textContent = '❌ DESCONECTADO';
+      statusText.className = 'status-indicator status-disconnected';
+      statusDetails.textContent = data.qrDisponivel 
+        ? 'QR Code disponível. Clique em "Conectar WhatsApp" para escanear.' 
+        : 'Aguardando geração do QR Code...';
+      btnConectar.textContent = 'Conectar WhatsApp';
+      btnConectar.style.backgroundColor = '#25D366';
+      btnEnviar.disabled = true;
+    }
+  } catch (error) {
+    console.error('Erro ao verificar status:', error);
+    // Mostra mensagem amigável, não tranca a UI
+    statusText.textContent = '❌ ERRO';
+    statusText.className = 'status-indicator status-disconnected';
+    statusDetails.textContent = `Erro: ${error.message}. Abra o console para ver a resposta crua.`;
+    btnEnviar.disabled = true;
+  }
+}
+
 
     // Botão para abrir página do QR Code
     document.getElementById('btnConectarWhatsApp').addEventListener('click', () => {
