@@ -73,16 +73,22 @@
       padding: 8px 16px;
       font-size: 14px;
     }
+    .small-note {
+      color: #666;
+      font-size: 14px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .placeholder-text {
+      display: inline-block;
+      font-weight: 600;
+      color: #222;
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
   <h2>Enviar mensagens via WhatsApp</h2>
-
-  <!-- Botão para abrir QR (permanece, mas sem verificação de status) -->
-  <div style="margin-bottom:16px;">
-    <button id="btnConectarWhatsApp" class="btn-small" style="background:#25D366;border:none;color:#fff;">Conectar WhatsApp (QR)</button>
-    <span style="margin-left:10px;color:#666;font-size:14px;">Abra a janela para escanear o QR quando necessário.</span>
-  </div>
 
   <label for="titulo">Título (para arquivo histórico)</label>
   <textarea id="titulo" placeholder="Título da mensagem (opcional)"></textarea>
@@ -148,18 +154,7 @@
       (campos[rota] || []).forEach(id => document.getElementById(id).classList.remove("hidden"));
     }
 
-    // Botão para abrir página do QR Code (mantido)
-    document.getElementById('btnConectarWhatsApp').addEventListener('click', () => {
-      const qrWindow = window.open(`${BASE_URL}/qr-page`, 'whatsapp_qr', 'width=500,height=700,scrollbars=no,resizable=no');
-      if (!qrWindow) {
-        alert('Popup bloqueado! Por favor, permita popups para este site.');
-      }
-    });
-
-    // Não fazemos mais verificações periódicas de /health
-    // setInterval/verificarStatus removidos intencionalmente
-
-    // Só atualiza campos quando carregar
+    // Não há verificação de /health nem botão de conectar — envio direto
     window.addEventListener('load', () => {
       atualizarCampos();
     });
@@ -217,7 +212,6 @@
           });
           
           if (!resp1.ok) {
-            // tenta ler corpo de erro para exibir ao usuário
             let erroBody;
             try { erroBody = await resp1.text(); } catch (e) { erroBody = resp1.statusText; }
             throw new Error(`HTTP error! status: ${resp1.status} - ${erroBody}`);
