@@ -193,32 +193,50 @@
     }
 
     // Função para verificar status do WhatsApp
-    async function verificarStatusWhatsApp() {
+async function verificarStatusWhatsApp() {
   const statusText = document.getElementById('statusText');
   const statusDetails = document.getElementById('statusDetails');
   const btnConectar = document.getElementById('btnConectarWhatsApp');
   const btnEnviar = document.getElementById('btnEnviar');
+  const respostaPre = document.getElementById('resposta');
 
   try {
     console.log('Verificando status do WhatsApp em:', `${BASE_URL}/health`);
-    const response = await fetch(`${BASE_URL}/health`, { cache: 'no-store' });
-    
-    // pegar content-type para decidir
-    const contentType = response.headers.get('content-type') || '';
-    
-    let data;
-    if (contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      // se não for JSON, pega texto (útil pra debugar HTML)
+    const response = await fetch(`${BASE_URL}/health`, {
+      method: 'GET',
+      cache: 'no-store',
+      mode: 'cors',
+      headers: {
+        'Accept': 'application/json'
+      },
+      redirect: 'follow'
+    });
+
+    // informações úteis pra debug
+    console.log('Fetch /health — status:', response.status, 'url:', response.url);
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    console.log('Content-Type recebido:', contentType);
+
+    // Se não for JSON, pega como texto e loga / mostra na UI
+    if (!contentType.includes('application/json')) {
       const text = await response.text();
-      console.warn('Resposta não-JSON recebida em /health:', text);
-      throw new Error('Resposta do /health não é JSON. Veja console para o corpo (provável HTML do ngrok ou página de erro).');
+      console.warn('Resposta NÃO-JSON recebida em /health:', {
+        status: response.status,
+        url: response.url,
+        contentType,
+        snippet: text.slice(0, 200) // mostra início
+      });
+
+      // mostra o corpo bruto no pre para você inspecionar facilmente
+      respostaPre.textContent = `Resposta não-JSON recebida em /health (status ${response.status}, url: ${response.url}, content-type: ${contentType}):\n\n` + text;
+      throw new Error('Resposta do /health não é JSON. Verifique response.url e corpo acima.');
     }
 
-    // Se chegou aqui, temos JSON válido
-    console.log('Status recebido:', data);
+    // é JSON — parse com segurança
+    const data = await response.json();
+    console.log('Status recebido (JSON):', data);
 
+    // comportamento normal
     if (data.pronto) {
       statusText.textContent = '✅ CONECTADO';
       statusText.className = 'status-indicator status-connected';
@@ -236,12 +254,14 @@
       btnConectar.style.backgroundColor = '#25D366';
       btnEnviar.disabled = true;
     }
+
+    // limpa área de resposta crua se tudo OK
+    respostaPre.textContent = '';
   } catch (error) {
     console.error('Erro ao verificar status:', error);
-    // Mostra mensagem amigável, não tranca a UI
     statusText.textContent = '❌ ERRO';
     statusText.className = 'status-indicator status-disconnected';
-    statusDetails.textContent = `Erro: ${error.message}. Abra o console para ver a resposta crua.`;
+    statusDetails.textContent = `Erro: ${error.message}. Veja o corpo raw (campo "Resposta do servidor") para diagnosticar.`;
     btnEnviar.disabled = true;
   }
 }
