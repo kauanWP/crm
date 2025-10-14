@@ -69,10 +69,66 @@
     .hidden {
       display: none;
     }
+    /* Estilos para a seção de status do WhatsApp */
+    .status-container {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #007bff;
+    }
+    .status-whatsapp {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .status-indicator {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .status-connected {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .status-checking {
+      background: #fff3cd;
+      color: #856404;
+    }
+    #btnConectarWhatsApp {
+      background-color: #25D366;
+    }
+    #btnConectarWhatsApp:hover {
+      background-color: #1da851;
+    }
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <h2>Enviar mensagens via WhatsApp</h2>
+
+  <!-- Seção de Status do WhatsApp -->
+  <div class="status-container">
+    <div class="status-whatsapp">
+      <div>
+        <strong>Status do WhatsApp:</strong>
+        <span id="statusText" class="status-indicator status-checking">Verificando...</span>
+      </div>
+      <button id="btnConectarWhatsApp" class="btn-small">Conectar WhatsApp</button>
+    </div>
+    <div id="statusDetails" style="font-size: 14px; color: #666;">
+      Conecte seu WhatsApp para começar a enviar mensagens
+    </div>
+  </div>
 
   <label for="titulo">Título (para arquivo histórico)</label>
   <textarea id="titulo" placeholder="Título da mensagem (opcional)"></textarea>
@@ -129,11 +185,60 @@
       "mensagem-boleto": ["divMensagem2", "divCaminhoBoleto"],
     };
 
+    // URL base do seu backend - altere conforme necessário
+    const BASE_URL = 'https://8ac3555a474d.ngrok-free.app';
+
     function atualizarCampos() {
       document.querySelectorAll(".hidden").forEach(el => el.classList.add("hidden"));
       const rota = document.getElementById("rota").value;
       (campos[rota] || []).forEach(id => document.getElementById(id).classList.remove("hidden"));
     }
+
+    // Função para verificar status do WhatsApp
+    async function verificarStatusWhatsApp() {
+      try {
+        const response = await fetch(`${BASE_URL}/health`);
+        const data = await response.json();
+        
+        const statusText = document.getElementById('statusText');
+        const statusDetails = document.getElementById('statusDetails');
+        const btnConectar = document.getElementById('btnConectarWhatsApp');
+        const btnEnviar = document.getElementById('btnEnviar');
+        
+        if (data.pronto) {
+          statusText.textContent = '✅ CONECTADO';
+          statusText.className = 'status-indicator status-connected';
+          statusDetails.textContent = `WhatsApp conectado e pronto para uso. Envios hoje: ${data.enviosHoje}`;
+          btnConectar.textContent = 'Gerenciar Conexão';
+          btnConectar.style.backgroundColor = '#28a745';
+          btnEnviar.disabled = false;
+        } else {
+          statusText.textContent = '❌ DESCONECTADO';
+          statusText.className = 'status-indicator status-disconnected';
+          statusDetails.textContent = 'WhatsApp não conectado. Clique em "Conectar WhatsApp" para escanear o QR Code.';
+          btnConectar.textContent = 'Conectar WhatsApp';
+          btnConectar.style.backgroundColor = '#25D366';
+          btnEnviar.disabled = true;
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+        document.getElementById('statusText').textContent = '❌ ERRO';
+        document.getElementById('statusText').className = 'status-indicator status-disconnected';
+        document.getElementById('statusDetails').textContent = 'Erro ao conectar com o servidor. Verifique a conexão.';
+        document.getElementById('btnEnviar').disabled = true;
+      }
+    }
+
+    // Botão para abrir página do QR Code
+    document.getElementById('btnConectarWhatsApp').addEventListener('click', () => {
+      window.open(`${BASE_URL}/qr-page`, 'whatsapp_qr', 'width=500,height=700,scrollbars=no,resizable=no');
+    });
+
+    // Verificar status a cada 5 segundos
+    setInterval(verificarStatusWhatsApp, 5000);
+    
+    // Verificar status quando a página carregar
+    window.addEventListener('load', verificarStatusWhatsApp);
 
     document.getElementById("rota").addEventListener("change", atualizarCampos);
     window.addEventListener("load", atualizarCampos);
@@ -141,6 +246,16 @@
     document.getElementById("btnEnviar").addEventListener("click", async () => {
       const btn = document.getElementById("btnEnviar");
       btn.disabled = true;
+
+      // Verificar se WhatsApp está conectado
+      const statusResponse = await fetch(`${BASE_URL}/health`);
+      const statusData = await statusResponse.json();
+      
+      if (!statusData.pronto) {
+        alert("WhatsApp não está conectado. Por favor, conecte o WhatsApp primeiro.");
+        btn.disabled = false;
+        return;
+      }
 
       const vendedor = document.getElementById("vendedor").value;
       const tipo = document.getElementById("rota").value;
@@ -157,6 +272,12 @@
         return;
       }
 
+      if (!mensagem1.trim()) {
+        alert("Por favor, informe a mensagem.");
+        btn.disabled = false;
+        return;
+      }
+
       const barra = document.getElementById("barraProgresso");
       const status = document.getElementById("statusEnvio");
       const respostaPre = document.getElementById("resposta");
@@ -168,29 +289,34 @@
       const jsonBase = {
         mensagem: mensagem1,
         titulo,
-        tipo,
         dadosCliente: {},
-        midia: tipo === "imagem" ? { caminho: caminhoimagem } : tipo === "boleto" || tipo === "mensagem-boleto" ? { caminho: caminhoBoleto } : undefined
       };
 
       let resultados = [];
       for (let i = 0; i < numeros.length; i++) {
         try {
           // Enviar a primeira mensagem
-          const resp1 = await fetch(`https://8ac3555a474d.ngrok-free.app/enviar?vendedor=${vendedor}`, {
+          const resp1 = await fetch(`${BASE_URL}/enviar?vendedor=${vendedor}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ numeros: [numeros[i]], ...jsonBase })
+            body: JSON.stringify({ 
+              numeros: [numeros[i]], 
+              ...jsonBase 
+            })
           });
           const result1 = await resp1.json();
           resultados.push({ numero: numeros[i], resultado: result1 });
 
           // Se for mensagem dupla, enviar a segunda mensagem
           if (tipo === "mensagem-dupla" && mensagem2) {
-            const resp2 = await fetch(`https://8ac3555a474d.ngrok-free.app/enviar?vendedor=${vendedor}`, {
+            const resp2 = await fetch(`${BASE_URL}/enviar?vendedor=${vendedor}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ numeros: [numeros[i]], mensagem: mensagem2, titulo })
+              body: JSON.stringify({ 
+                numeros: [numeros[i]], 
+                mensagem: mensagem2, 
+                titulo 
+              })
             });
             const result2 = await resp2.json();
             resultados.push({ numero: numeros[i], resultado: result2 });
@@ -201,11 +327,17 @@
 
         barra.value = i + 1;
         status.textContent = `Enviando... (${i + 1}/${numeros.length})`;
+        
+        // Atualizar status do WhatsApp durante o envio
+        await verificarStatusWhatsApp();
       }
 
       status.textContent = "Envio finalizado.";
       respostaPre.textContent = JSON.stringify(resultados, null, 2);
       btn.disabled = false;
+      
+      // Atualizar status final
+      await verificarStatusWhatsApp();
     });
   </script>
 </body>
